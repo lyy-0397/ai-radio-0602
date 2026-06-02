@@ -1,4 +1,6 @@
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
+
+export const maxDuration = 60; // Increase Vercel serverless timeout limit
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -6,7 +8,13 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { text, voiceName, customApiKey, baseUrl, openRouterKey } = req.body;
+    let body = req.body;
+    if (typeof body === 'string') {
+       try { body = JSON.parse(body); } catch(e) {}
+    }
+
+    const { text, voiceName, customApiKey, baseUrl, openRouterKey } = body;
+    
     if (!text || !voiceName) {
       return res.status(400).json({ error: "Missing text or voiceName" });
     }
@@ -29,14 +37,16 @@ export default async function handler(req: any, res: any) {
       });
       
       if (!response.ok) {
-         const err = await response.json().catch(()=>({}));
-         throw new Error(`OpenRouter Error: ${err.error?.message || response.statusText}`);
+         const errText = await response.text();
+         let errObj;
+         try { errObj = JSON.parse(errText); } catch(e) {}
+         throw new Error(`OpenRouter Error: ${errObj?.error?.message || errText || response.statusText}`);
       }
       
       const data = await response.json();
       const base64Audio = data.choices?.[0]?.message?.audio?.data;
       if (!base64Audio) {
-         throw new Error("OpenRouter generated no audio content. Please make sure the model supports TTS or use Gemini API key instead.");
+         throw new Error("OpenRouter generated no audio content. Response: " + JSON.stringify(data));
       }
       return res.json({ audio: base64Audio });
     }
@@ -60,7 +70,7 @@ export default async function handler(req: any, res: any) {
       model: "gemini-3.1-flash-tts-preview",
       contents: [{ parts: [{ text }] }],
       config: {
-        responseModalities: [Modality.AUDIO],
+        responseModalities: ["AUDIO"],
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: { voiceName },
@@ -69,14 +79,13 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    const base64Audio =
-      response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
     if (!base64Audio) {
-      return res.status(500).json({ error: "Failed to generate audio" });
+      return res.status(500).json({ error: `Failed to generate audio from Gemini. Raw response object empty or missing inlineData.` });
     }
 
-    res.json({ audio: base64Audio });
+    return res.json({ audio: base64Audio });
   } catch (error: any) {
     console.error("TTS Error:", error);
     
@@ -89,6 +98,10 @@ export default async function handler(req: any, res: any) {
       status = 429;
     }
 
-    res.status(status).json({ error: message });
+    return res.status(status).json({ 
+       error: message,
+       stack: error.stack,
+       details: error.toString()
+    });
   }
 }
