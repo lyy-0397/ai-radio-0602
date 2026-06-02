@@ -48,8 +48,14 @@ export const fetchTTS = async (
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const errorMessage = typeof err.error === 'string' ? err.error : JSON.stringify(err.error) || "Failed to fetch TTS";
+      let err;
+      try {
+        err = await res.json();
+      } catch (e) {
+        err = { error: `HTTP ${res.status} - Vercel Server Error (check Vercel functions logs)` };
+      }
+      const errorMessage = typeof err.error === 'string' ? err.error : (err.details || JSON.stringify(err.error) || "Failed to fetch TTS");
+      console.error("API /api/tts returned error:", err);
       
       const isRateLimit = res.status === 429 || errorMessage.includes("429") || errorMessage.includes("Quota") || errorMessage.includes("RESOURCE_EXHAUSTED");
       

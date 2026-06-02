@@ -3,14 +3,33 @@ import { GoogleGenAI } from "@google/genai";
 export const maxDuration = 60; // Increase Vercel serverless timeout limit
 
 export default async function handler(req: any, res: any) {
+  // Add CORS headers just in case Vercel is rejecting from frontend
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
   try {
     let body = req.body;
+    
+    // In rare cases Vercel might pass a raw buffer or string
+    if (Buffer.isBuffer(body)) {
+      body = body.toString('utf8');
+    }
     if (typeof body === 'string') {
        try { body = JSON.parse(body); } catch(e) {}
+    }
+
+    if (!body || typeof body !== 'object') {
+       return res.status(400).json({ error: "Invalid request body format. Expected JSON." });
     }
 
     const { text, voiceName, customApiKey, baseUrl, openRouterKey } = body;
@@ -53,7 +72,7 @@ export default async function handler(req: any, res: any) {
 
     const apiKey = customApiKey || process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return res.status(400).json({ error: "No API Key provided" });
+      return res.status(400).json({ error: "No API Key provided. Set GEMINI_API_KEY in Vercel environment variables or enter one in the UI settings." });
     }
 
     const ai = new GoogleGenAI({
