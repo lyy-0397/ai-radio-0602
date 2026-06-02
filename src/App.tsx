@@ -375,7 +375,7 @@ export default function App() {
                   placeholder="sk-or-v1-..."
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 transition-colors"
                 />
-                <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">若填写 OpenRouter Key，将优先使用 OpenRouter。若留空，则使用 Gemini Key与Base URL（可为空）。</p>
+                <p className="text-[10px] text-rose-500 mt-2 leading-relaxed">注意：OpenRouter 官方接口暂不支持音频内容生成（TTS），如果使用上述请求会报错。为了能正常生成音频，请清空本项并使用下方的原生 Gemini Key。</p>
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button 

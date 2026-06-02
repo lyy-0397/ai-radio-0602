@@ -59,7 +59,13 @@ export default async function handler(req: any, res: any) {
          const errText = await response.text();
          let errObj;
          try { errObj = JSON.parse(errText); } catch(e) {}
-         throw new Error(`OpenRouter Error: ${errObj?.error?.message || errText || response.statusText}`);
+         const errorMsg = errObj?.error?.message || errText || response.statusText;
+         
+         if (errorMsg.includes("requested output modalities") || errorMsg.includes("audio")) {
+             throw new Error("OpenRouter 目前不支持音频输出 (TTS) 功能。请在设置中清空 OpenRouter Key，并使用原生的 Gemini API Key。");
+         }
+         
+         throw new Error(`OpenRouter Error: ${errorMsg}`);
       }
       
       const data = await response.json();
